@@ -2,14 +2,15 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang/glog"
-	"k8s.io/api/admission/v1beta1"
-	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +32,7 @@ var (
 
 func init() {
 	_ = corev1.AddToScheme(runtimeScheme)
-	_ = admissionregistrationv1beta1.AddToScheme(runtimeScheme)
+	_ = admissionregistrationv1.AddToScheme(runtimeScheme)
 	// defaulting with webhooks:
 	// https://github.com/kubernetes/kubernetes/issues/57982
 	_ = v1.AddToScheme(runtimeScheme)
@@ -40,31 +41,53 @@ func init() {
 func main() {
 	router := gin.Default()
 	router.POST("/mutate", mutateHandler)
-	router.Run(":8181")
+
+	cert := flag.String("cert", "", "cert file ")
+	key := flag.String("key", "", "key file")
+	flag.Parse()
+
+	log.Printf("tls file:%s|%s", *cert, *key)
+
+	if *cert != "" && *key != "" {
+		log.Print("run tls")
+		router.RunTLS(":8181", *cert, *key)
+	} else {
+		log.Printf("run not tls")
+		router.Run(":8181")
+	}
+
 }
 
 func mutateHandler(c *gin.Context) {
-	ar := v1beta1.AdmissionReview{}
+	fmt.Println("begin mutateHandler")
+	ar := admissionv1.AdmissionReview{}
 	err := c.BindJSON(&ar)
 	if err != nil {
 		log.Println("parse.request.failed!", err)
+	}
+	b, err := json.Marshal(ar)
+	if err != nil {
+		fmt.Println("failed.to.Marshal:", err)
+	} else {
+		fmt.Println("data.size:", len(b))
+		// fmt.Println("s:", string(b))
 	}
 	req := ar.Request
 	var (
 		resourceName string
 	)
-	glog.Infof("AdmissionReview for Kind=%v, Namespace=%v Name=%v (%v) UID=%v patchOperation=%v UserInfo=%v",
+	fmt.Printf("AdmissionReview for Kind=%s, Namespace=%s Name=%s (%s) UID=%s patchOperation=%s UserInfo=%s \n",
 		req.Kind, req.Namespace, req.Name, resourceName, req.UID, req.Operation, req.UserInfo)
 
 	containers := make(map[int]string, 1)
-	admissionReview := v1beta1.AdmissionReview{}
+	admissionReview := admissionv1.AdmissionReview{}
 
 	switch req.Kind.Kind {
 	case "Deployment":
 		var deployment appsv1.Deployment
 		if err := json.Unmarshal(req.Object.Raw, &deployment); err != nil {
-			glog.Errorf("Could not unmarshal raw object: %v", err)
-			admissionReview.Response = &v1beta1.AdmissionResponse{
+			fmt.Printf("Could not unmarshal raw object: %s \n", err.Error())
+			admissionReview.Response = &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -76,7 +99,7 @@ func mutateHandler(c *gin.Context) {
 		}
 
 		for i, c := range deployment.Spec.Template.Spec.Containers {
-			glog.Info("container.image:", c.Image)
+			fmt.Println("container.image:", c.Image)
 			if strings.HasPrefix(c.Image, "lank8s.cn") || strings.HasPrefix(c.Image, "k8s.lank8s.cn") || strings.HasPrefix(c.Image, "gcr.lank8s.cn") {
 				continue
 			}
@@ -89,8 +112,8 @@ func mutateHandler(c *gin.Context) {
 	case "StatefulSet":
 		var statefulSet appsv1.StatefulSet
 		if err := json.Unmarshal(req.Object.Raw, &statefulSet); err != nil {
-			glog.Errorf("Could not unmarshal raw object: %v", err)
-			admissionReview.Response = &v1beta1.AdmissionResponse{
+			fmt.Printf("Could not unmarshal raw object: %s \n", err.Error())
+			admissionReview.Response = &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -101,7 +124,7 @@ func mutateHandler(c *gin.Context) {
 			return
 		}
 		for i, c := range statefulSet.Spec.Template.Spec.Containers {
-			glog.Info("container.image:", c.Image)
+			fmt.Println("container.image:", c.Image)
 			if strings.HasPrefix(c.Image, "lank8s.cn") || strings.HasPrefix(c.Image, "k8s.lank8s.cn") || strings.HasPrefix(c.Image, "gcr.lank8s.cn") {
 				continue
 			}
@@ -114,8 +137,8 @@ func mutateHandler(c *gin.Context) {
 	case "DaemonSet":
 		var daemonSet appsv1.DaemonSet
 		if err := json.Unmarshal(req.Object.Raw, &daemonSet); err != nil {
-			glog.Errorf("Could not unmarshal raw object: %v", err)
-			admissionReview.Response = &v1beta1.AdmissionResponse{
+			fmt.Printf("Could not unmarshal raw object: %s \n", err.Error())
+			admissionReview.Response = &admissionv1.AdmissionResponse{
 				Result: &metav1.Status{
 					Message: err.Error(),
 				},
@@ -126,7 +149,7 @@ func mutateHandler(c *gin.Context) {
 			return
 		}
 		for i, c := range daemonSet.Spec.Template.Spec.Containers {
-			glog.Info("container.image:", c.Image)
+			fmt.Println("container.image:", c.Image)
 			if strings.HasPrefix(c.Image, "lank8s.cn") || strings.HasPrefix(c.Image, "k8s.lank8s.cn") || strings.HasPrefix(c.Image, "gcr.lank8s.cn") {
 				continue
 			}
@@ -139,12 +162,11 @@ func mutateHandler(c *gin.Context) {
 	case "Pod":
 	}
 	var patch []patchOperation
-	glog.Infof("begin replace image", containers)
+	fmt.Println("begin replace image", containers)
 	patch = replaceImage(containers, patch)
-	//TODO 判断大小 如果没有数据就直接返回不用序列化了
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
-		admissionReview.Response = &v1beta1.AdmissionResponse{
+		admissionReview.Response = &admissionv1.AdmissionResponse{
 			Result: &metav1.Status{
 				Message: err.Error(),
 			},
@@ -155,16 +177,18 @@ func mutateHandler(c *gin.Context) {
 		return
 	}
 
-	glog.Infof("AdmissionResponse: patch=\n", string(patchBytes))
+	fmt.Printf("AdmissionResponse: patch=%s\n", string(patchBytes))
 
-	admissionReview.Response = &v1beta1.AdmissionResponse{
+	admissionReview.Response = &admissionv1.AdmissionResponse{
 		Allowed: true,
 		Patch:   patchBytes,
-		PatchType: func() *v1beta1.PatchType {
-			pt := v1beta1.PatchTypeJSONPatch
+		PatchType: func() *admissionv1.PatchType {
+			pt := admissionv1.PatchTypeJSONPatch
 			return &pt
 		}(),
 	}
+	admissionReview.APIVersion = ar.APIVersion
+	admissionReview.Kind = ar.Kind
 	admissionReview.Response.UID = ar.Request.UID
 
 	c.JSON(200, &admissionReview)
@@ -179,7 +203,7 @@ func replaceImage(containers map[int]string, patch []patchOperation) []patchOper
 			Path:  "/spec/template/spec/containers/" + str + "/image",
 			Value: c,
 		}
-		glog.Infof("add.patch:%s|%s\n", p.Path, p.Value)
+		fmt.Printf("add.patch:%s|%s\n", p.Path, p.Value)
 		patch = append(patch, p)
 	}
 	return patch

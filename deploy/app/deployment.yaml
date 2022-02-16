@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: replacer
+  labels:
+    app: replacer
+spec:
+  selector:
+    matchLabels:  
+      app: replacer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: replacer
+    spec:
+      volumes:
+      - secret:
+          secretName: replacer
+        name: tlsfile
+      containers:
+        - name: replacer
+          image: ghcr.io/liangyuanpeng/replacer:v1
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+          - name: tlsfile
+            mountPath: /tlsfile/
+          args:
+          - --cert=/tlsfile/cert
+          - --key=/tlsfile/key
+          env:
+            - name: spring.redis.host
+              value: redis
+          ports:
+            - name: replacer
+              protocol: TCP
+              containerPort: 8181
+          resources:
+            requests:
+              memory: 125Mi 
+            limits:
+              memory: 512Mi
+
+---

@@ -1,0 +1,4 @@
+
+等待job完成/service创建完了就退出程序,用于initContainer
+
+开一个新的仓库,目前先放这里用于开发
