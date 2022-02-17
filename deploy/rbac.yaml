@@ -20,35 +20,11 @@ rules:
   - update
   - patch
 - apiGroups:
-  - apps
+  - "batch"
   resources:
-  - daemonsets
-  verbs:
-  - create
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - create
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - secrets
-  - service
+  - jobs
   verbs:
   - list
-  - create
-  - update
-  - get
-  - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -65,52 +41,17 @@ rules:
 - apiGroups:
   - "*"
   resources:
-  # - mutatingWebhookConfiguration
-  # - mutatingWebhookConfigurations
-  - secrets
+  - jobs
   verbs:
   - "*"
-# - apiGroups:
-#   - admissionregistration.k8s.io
-#   resources:
-#   - mutatingWebhookConfigurations
-#   verbs:
-#   - list
-#   - get
-#   - update
-#   - patch
-# - apiGroups:
-#   - apps
-#   resources:
-#   - daemonsets
-#   verbs:
-#   - create
-#   - patch
-#   - update
-#   - watch
-# - apiGroups:
-#   - apps
-#   resources:
-#   - deployments
-#   verbs:
-#   - get
-#   - list
-#   - create
-#   - patch
-#   - update
-#   - watch
-# - apiGroups:
-#   - ""
-#   resources:
-#   - pods
-#   - secrets
-#   - service
-#   verbs:
-#   - list
-#   - create
-#   - update
-#   - get
-#   - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - patch
+  - get
 ---
 # apiVersion: rbac.authorization.k8s.io/v1
 # kind: RoleBinding

@@ -18,9 +18,17 @@ spec:
       - secret:
           secretName: replacer
         name: tlsfile
+      serviceAccountName: replacer
+      initContainers:
+        - name: waitfor
+          image: ghcr.io/liangyuanpeng/waitfor:v1.0.0
+          imagePullPolicy: IfNotPresent
+          args:
+          - --jobname 
+          - replacer-patch
       containers:
         - name: replacer
-          image: ghcr.io/liangyuanpeng/replacer:v1
+          image: ghcr.io/liangyuanpeng/replacer:v1.0.0
           imagePullPolicy: IfNotPresent
           volumeMounts:
           - name: tlsfile
@@ -28,9 +36,6 @@ spec:
           args:
           - --cert=/tlsfile/cert
           - --key=/tlsfile/key
-          env:
-            - name: spring.redis.host
-              value: redis
           ports:
             - name: replacer
               protocol: TCP
