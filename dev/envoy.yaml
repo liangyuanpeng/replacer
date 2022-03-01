@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: replacer-dev
+  labels:
+    app: replacer-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: replacer-dev
+  template:
+    metadata:
+      labels:
+        app: replacer-dev
+    spec:
+      serviceAccount: replacer-dev
+      initContainers:
+        - name: waitfor
+          image: ghcr.io/liangyuanpeng/waitfor:v1.1.0
+          imagePullPolicy: IfNotPresent
+          args:
+          - --jobname 
+          - replacer-secret-patch-dev
+      containers:
+        - name: replacer
+          image: envoyproxy/envoy:v1.14.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: req
+              protocol: TCP
+              containerPort: 443
+            - name: admin
+              containerPort: 8081
+          command: 
+            - /bin/sh
+            - -c
+            - envoy -c /etc/envoy/envoy.yaml
+          volumeMounts:
+            - name: webhook-certs
+              mountPath: /etc/webhook/certs
+              readOnly: true
+            - name: envoy-config
+              mountPath: /etc/envoy
+      volumes:
+        - name: envoy-config
+          configMap:
+            name: envoy-configmap
+        - name: webhook-certs
+          secret:
+            secretName: replacer-secret-dev

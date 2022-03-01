@@ -12,9 +12,11 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	v1 "k8s.io/kubernetes/pkg/apis/core/v1"
 )
 
@@ -80,104 +82,55 @@ func mutateHandler(c *gin.Context) {
 		req.Kind, req.Namespace, req.Name, resourceName, req.UID, req.Operation, req.UserInfo)
 
 	containers := make(map[int]string, 1)
-	admissionReview := admissionv1.AdmissionReview{}
 
 	switch req.Kind.Kind {
 	case "Deployment":
 		var deployment appsv1.Deployment
 		if err := json.Unmarshal(req.Object.Raw, &deployment); err != nil {
-			fmt.Printf("Could not unmarshal raw object: %s \n", err.Error())
-			admissionReview.Response = &admissionv1.AdmissionResponse{
-				Result: &metav1.Status{
-					Message: err.Error(),
-				},
-			}
-			admissionReview.Response.UID = ar.Request.UID
-
-			c.JSON(200, &admissionReview)
+			c.JSON(200, fiiledAdmissionReview(err, ar.Request.UID))
 			return
 		}
 
-		for i, c := range deployment.Spec.Template.Spec.Containers {
-			fmt.Println("container.image:", c.Image)
-			if strings.HasPrefix(c.Image, "lank8s.cn") || strings.HasPrefix(c.Image, "k8s.lank8s.cn") || strings.HasPrefix(c.Image, "gcr.lank8s.cn") {
-				continue
-			}
-			if strings.HasPrefix(c.Image, "k8s.gcr.io") {
-				containers[i] = strings.ReplaceAll(c.Image, "k8s.gcr.io", "lank8s.cn")
-			} else if strings.HasPrefix(c.Image, "gcr.io") {
-				containers[i] = strings.ReplaceAll(c.Image, "gcr.io", "gcr.lank8s.cn")
-			}
-		}
+		foundNeedReplaceImageFromContainer(containers, deployment.Spec.Template.Spec.Containers)
+
 	case "StatefulSet":
 		var statefulSet appsv1.StatefulSet
 		if err := json.Unmarshal(req.Object.Raw, &statefulSet); err != nil {
-			fmt.Printf("Could not unmarshal raw object: %s \n", err.Error())
-			admissionReview.Response = &admissionv1.AdmissionResponse{
-				Result: &metav1.Status{
-					Message: err.Error(),
-				},
-			}
-			admissionReview.Response.UID = ar.Request.UID
-
-			c.JSON(200, &admissionReview)
+			c.JSON(200, fiiledAdmissionReview(err, ar.Request.UID))
 			return
 		}
-		for i, c := range statefulSet.Spec.Template.Spec.Containers {
-			fmt.Println("container.image:", c.Image)
-			if strings.HasPrefix(c.Image, "lank8s.cn") || strings.HasPrefix(c.Image, "k8s.lank8s.cn") || strings.HasPrefix(c.Image, "gcr.lank8s.cn") {
-				continue
-			}
-			if strings.HasPrefix(c.Image, "k8s.gcr.io") {
-				containers[i] = strings.ReplaceAll(c.Image, "k8s.gcr.io", "lank8s.cn")
-			} else if strings.HasPrefix(c.Image, "gcr.io") {
-				containers[i] = strings.ReplaceAll(c.Image, "gcr.io", "gcr.lank8s.cn")
-			}
-		}
+		foundNeedReplaceImageFromContainer(containers, statefulSet.Spec.Template.Spec.Containers)
+
 	case "DaemonSet":
 		var daemonSet appsv1.DaemonSet
 		if err := json.Unmarshal(req.Object.Raw, &daemonSet); err != nil {
-			fmt.Printf("Could not unmarshal raw object: %s \n", err.Error())
-			admissionReview.Response = &admissionv1.AdmissionResponse{
-				Result: &metav1.Status{
-					Message: err.Error(),
-				},
-			}
-			admissionReview.Response.UID = ar.Request.UID
-
-			c.JSON(200, &admissionReview)
+			c.JSON(200, fiiledAdmissionReview(err, ar.Request.UID))
 			return
 		}
-		for i, c := range daemonSet.Spec.Template.Spec.Containers {
-			fmt.Println("container.image:", c.Image)
-			if strings.HasPrefix(c.Image, "lank8s.cn") || strings.HasPrefix(c.Image, "k8s.lank8s.cn") || strings.HasPrefix(c.Image, "gcr.lank8s.cn") {
-				continue
-			}
-			if strings.HasPrefix(c.Image, "k8s.gcr.io") {
-				containers[i] = strings.ReplaceAll(c.Image, "k8s.gcr.io", "lank8s.cn")
-			} else if strings.HasPrefix(c.Image, "gcr.io") {
-				containers[i] = strings.ReplaceAll(c.Image, "gcr.io", "gcr.lank8s.cn")
-			}
-		}
+		foundNeedReplaceImageFromContainer(containers, daemonSet.Spec.Template.Spec.Containers)
+
 	case "Pod":
+	case "Job":
+		var job batchv1.Job
+		if err := json.Unmarshal(req.Object.Raw, &job); err != nil {
+			c.JSON(200, fiiledAdmissionReview(err, ar.Request.UID))
+			return
+		}
+		foundNeedReplaceImageFromContainer(containers, job.Spec.Template.Spec.Containers)
+
+	case "CronJob":
 	}
 	var patch []patchOperation
 	fmt.Println("begin replace image", containers)
 	patch = replaceImage(containers, patch)
 	patchBytes, err := json.Marshal(patch)
 	if err != nil {
-		admissionReview.Response = &admissionv1.AdmissionResponse{
-			Result: &metav1.Status{
-				Message: err.Error(),
-			},
-		}
-		admissionReview.Response.UID = ar.Request.UID
-
-		c.JSON(200, &admissionReview)
+		c.JSON(200, fiiledAdmissionReview(err, ar.Request.UID))
 		return
 	}
 
 	fmt.Printf("AdmissionResponse: patch=%s\n", string(patchBytes))
+	admissionReview := admissionv1.AdmissionReview{}
 
 	admissionReview.Response = &admissionv1.AdmissionResponse{
 		Allowed: true,
@@ -194,6 +147,41 @@ func mutateHandler(c *gin.Context) {
 	c.JSON(200, &admissionReview)
 }
 
+func fiiledAdmissionReview(err error, uid types.UID) *admissionv1.AdmissionReview {
+	admissionReview := &admissionv1.AdmissionReview{}
+	if err != nil {
+		fmt.Printf("Could not unmarshal raw object: %s \n", err.Error())
+		admissionReview.Response = &admissionv1.AdmissionResponse{
+			Result: &metav1.Status{
+				Message: err.Error(),
+			},
+		}
+		admissionReview.Response.UID = uid
+		return admissionReview
+	}
+	return admissionReview
+}
+
+func foundNeedReplaceImageFromContainer(result map[int]string, containers []corev1.Container) {
+	for i, c := range containers {
+		fmt.Println("container.image:", c.Image)
+		if strings.HasPrefix(c.Image, "lank8s.cn") || strings.HasPrefix(c.Image, "k8s.lank8s.cn") || strings.HasPrefix(c.Image, "gcr.lank8s.cn") {
+			continue
+		}
+		if strings.HasPrefix(c.Image, "k8s.gcr.io") {
+			result[i] = strings.ReplaceAll(c.Image, "k8s.gcr.io", "lank8s.cn")
+		} else if strings.HasPrefix(c.Image, "gcr.io") {
+			result[i] = strings.ReplaceAll(c.Image, "gcr.io", "gcr.lank8s.cn")
+		}
+	}
+}
+
+type patchOperation struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value,omitempty"`
+}
+
 func replaceImage(containers map[int]string, patch []patchOperation) []patchOperation {
 
 	for i, c := range containers {
@@ -207,10 +195,4 @@ func replaceImage(containers map[int]string, patch []patchOperation) []patchOper
 		patch = append(patch, p)
 	}
 	return patch
-}
-
-type patchOperation struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value,omitempty"`
 }
