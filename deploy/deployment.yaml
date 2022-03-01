@@ -21,14 +21,14 @@ spec:
       serviceAccountName: replacer
       initContainers:
         - name: waitfor
-          image: ghcr.io/liangyuanpeng/waitfor:v1.0.0
+          image: ghcr.io/liangyuanpeng/waitfor:v1.1.0
           imagePullPolicy: IfNotPresent
           args:
           - --jobname 
           - replacer-patch
       containers:
         - name: replacer
-          image: ghcr.io/liangyuanpeng/replacer:v1.0.0
+          image: ghcr.io/liangyuanpeng/replacer:v1.1.0
           imagePullPolicy: IfNotPresent
           volumeMounts:
           - name: tlsfile

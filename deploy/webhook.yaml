@@ -18,3 +18,7 @@ webhooks:
         apiGroups: ["apps", ""]
         apiVersions: ["v1"]
         resources: ["deployments","daemonset","statefulset"]
+      - operations: [ "CREATE","UPDATE" ]
+        apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        resources: ["jobs"]

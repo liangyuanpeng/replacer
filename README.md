@@ -21,7 +21,7 @@ Replace container image of kubernetes mutate webhook
 - [x] Deployment
 - [x] StatefulSet
 - [x] DaemonSet
-- [ ] Job
+- [x] Job
 - [ ] CronJob  
 
 
