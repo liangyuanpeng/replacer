@@ -41,7 +41,7 @@ kubectl apply -f deploy -n replacer
 ## Helm 
 
 ```
-helm repo add lyp https://liangyuanpeng.github.io
+helm repo add lyp https://liangyuanpeng.github.io/charts
 helm install replacer lyp/replacer -n replacer --create-namespace
 ```
 
@@ -59,7 +59,7 @@ kubectl get po -n replacer
 ```
 git clone git@github.com:liangyuanpeng/replacer.git
 cd replacer
-kubectl apply -f deploy/test/sleep.yaml
+kubectl apply -f deploy/test/kube-proxy-deployment.yaml
 ```
 
 测试文件中的镜像为`k8s.gcr.io/kube-proxy:v1.10.1`,如果pod都够正常启动并且你的网络无法访问`k8s.gcr.io`那么说明webhook已经在正常工作了,接下来无需为任何`k8s.gcr.io`或`gcr.io`镜像拉取问题而烦恼了!
@@ -69,5 +69,5 @@ kubectl apply -f deploy/test/sleep.yaml
 # RoadMap
 
 - [ ] 替换镜像支持可配置,(配置将仓库A的镜像替换成仓库B的镜像)
-- [ ] 支持Job和CronJob的工作负载.
+- [x] 支持Job和CronJob的工作负载.
 
