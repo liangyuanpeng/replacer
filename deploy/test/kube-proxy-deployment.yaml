@@ -2,10 +2,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sleep
+  namespace: default2
 spec:
   selector:
     matchLabels:
       app: sleep
+  replicas: 3
   template:
     metadata:
       labels:

@@ -91,7 +91,11 @@ func mutateHandler(c *gin.Context) {
 			return
 		}
 
-		foundNeedReplaceImageFromContainer(containers, deployment.Spec.Template.Spec.Containers)
+		log.Println("deployment:", string(req.Object.Raw))
+
+		if 1 > 2 {
+			foundNeedReplaceImageFromContainer(containers, deployment.Spec.Template.Spec.Containers)
+		}
 
 	case "StatefulSet":
 		var statefulSet appsv1.StatefulSet
@@ -110,6 +114,13 @@ func mutateHandler(c *gin.Context) {
 		foundNeedReplaceImageFromContainer(containers, daemonSet.Spec.Template.Spec.Containers)
 
 	case "Pod":
+		var pod corev1.Pod
+		if err := json.Unmarshal(req.Object.Raw, &pod); err != nil {
+			c.JSON(200, fiiledAdmissionReview(err, ar.Request.UID))
+			return
+		}
+		log.Println("pod:", string(req.Object.Raw))
+
 	case "Job":
 		var job batchv1.Job
 		if err := json.Unmarshal(req.Object.Raw, &job); err != nil {

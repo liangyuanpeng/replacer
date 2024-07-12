@@ -51,7 +51,7 @@ data:
           #    http2_protocol_options: {}
           hosts:
             - socket_address:
-                address: 192.168.31.90
+                address: 192.168.66.2
                 port_value: 8181
     admin:
       access_log_path: "/dev/null"

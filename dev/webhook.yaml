@@ -13,12 +13,20 @@ webhooks:
         name: replacer
         namespace: default
         path: "/mutate"
+    objectSelector:
+      matchExpressions:
+      - key: app
+        values: 
+        - replacer-dev
+        - replacer-secret-job
+        operator: NotIn
     rules:
       - operations: [ "CREATE","UPDATE" ]
         apiGroups: ["apps", ""]
         apiVersions: ["v1"]
-        resources: ["deployments","daemonset","statefulset"]
-      - operations: [ "CREATE","UPDATE" ]
-        apiGroups: ["batch"]
-        apiVersions: ["v1"]
-        resources: ["jobs"]
+        # resources: ["deployments","daemonset","statefulset","pods"]
+        resources: ["pods"]
+      # - operations: [ "CREATE","UPDATE" ]
+      #   apiGroups: ["batch"]
+      #   apiVersions: ["v1"]
+      #   resources: ["jobs"]
